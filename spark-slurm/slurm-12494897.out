@@ -1,0 +1,19 @@
+vmp[526-527,552-553]
+0: vmp526: LEVEL 0
+0: starting org.apache.spark.deploy.master.Master, logging to /home/arnoldjr/packages/spark-2.1.0-bin-hadoop2.7/logs/spark-arnoldjr-org.apache.spark.deploy.master.Master-1-vmp526.out
+0: /home/arnoldjr/packages/spark-2.1.0-bin-hadoop2.7/sbin/spark-daemon.sh: line 126:  7127 Killed                  nohup -- "$@" >> $log 2>&1 < /dev/null
+0: failed to launch: nice -n 0 /home/arnoldjr/packages/spark-2.1.0-bin-hadoop2.7/bin/spark-class org.apache.spark.deploy.master.Master --host vmp526 --port 7077 --webui-port 8080
+0:   Spark Command: /usr/lib/jvm/java-1.7.0-openjdk-1.7.0.101.x86_64/jre/bin/java -cp /home/arnoldjr/packages/spark-2.1.0-bin-hadoop2.7/conf/:/home/arnoldjr/packages/spark-2.1.0-bin-hadoop2.7/jars/* -Dspark.deploy.defaultCores=0 -Xmx1g -XX:MaxPermSize=256m org.apache.spark.deploy.master.Master --host vmp526 --port 7077 --webui-port 8080
+0:   ========================================
+0: full log in /home/arnoldjr/packages/spark-2.1.0-bin-hadoop2.7/logs/spark-arnoldjr-org.apache.spark.deploy.master.Master-1-vmp526.out
+0: slurmstepd: error: Exceeded job memory limit at some point.
+0: vmp527: LEVEL 1
+1: vmp552: LEVEL 1
+2: vmp553: LEVEL 1
+0: /scratch/arnoldjr/12494896/slurm_script: line 28: /home/arnoldjr/packages/spark-2.1.0-bin-hadoop2.7/sbin/start-worker.sh: No such file or directory
+1: /scratch/arnoldjr/12494896/slurm_script: line 28: /home/arnoldjr/packages/spark-2.1.0-bin-hadoop2.7/sbin/start-worker.sh: No such file or directory
+2: /scratch/arnoldjr/12494896/slurm_script: line 28: /home/arnoldjr/packages/spark-2.1.0-bin-hadoop2.7/sbin/start-worker.sh: No such file or directory
+srun: error: vmp552: task 1: Exited with exit code 127
+srun: error: vmp553: task 2: Exited with exit code 127
+srun: error: vmp527: task 0: Exited with exit code 127
+slurmstepd: error: Exceeded job memory limit at some point.
