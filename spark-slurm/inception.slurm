@@ -1,63 +1,19 @@
 #!/bin/bash
 
-if [ "$#" -ne 1 ]; then
-    echo "USAGE: SBATCH [OPTION] $0 LEVEL"; exit 1
+if [[ "$#" -ne 1 && "$#" -ne 0 ]]; then
+    echo "USAGE: SBATCH [OPTION] $0 [LEVEL]"; exit 1
+fi
+if [ "$#" -eq 1 ]; then
+    LEVEL=$1
+else
+    LEVEL="CLIENT"
 fi
 
-LEVEL=$1
-
-# test if level is non-negative number
-re='^[0-9]$'
-if ! [[ $LEVEL =~ $re ]] ; then
-    echo "error: LEVEL must be an integer between 0 and 9,\
-        inclusive." >&2; exit 1
-fi
+echo $(hostname)": $LEVEL" 
 
 
-if (( LEVEL == 0 )); then
-
-    echo $(hostname)": LEVEL 0"
-
-elif (( LEVEL == 1 )); then
-    echo $(hostname)": WORKER" 
-    echo $SLURM_NODELIST
-    prog="$SPARK_HOME/sbin/start-slave.sh \
-        $MASTER_URL"
-    echo $prog
-    $prog
-
-    scontrol wait_job $CLIENT_JOB_ID
-
-elif (( LEVEL == 2 )); then
-
-    echo $(hostname)": MASTER" 
-    export SPARK_MASTER_HOST=$(hostname)
-    export SPARK_MASTER_PORT=7077
-    export SPARK_MASTER_WEBUI_PORT=8080
-    export MASTER_URL="spark://$SPARK_MASTER_HOST:$SPARK_MASTER_PORT"
-    export MASTER_WEBUI_URL="spark://$SPARK_MASTER_HOST:$SPARK_MASTER_WEBUI_PORT"
-    
-    # Write the master url to shared disk so that the client can read it.
-    echo $MASTER_URL > $JOB_HOME/master_url
-
-    export SPARK_WORKER_CORES=4
+if [ $LEVEL == "CLIENT" ]; then
    
-    # Start the Spark master
-    $SPARK_HOME/sbin/start-master.sh 
-
-    sbatch \
-        --nodes=4 \
-        --ntasks-per-node=1 \
-        --cpus-per-task=$SPARK_WORKER_CORES \
-        --mem=10G \
-        $SCRIPT_PATH 1 
-    
-    scontrol wait_job $CLIENT_JOB_ID
-
-
-elif (( LEVEL == 3 )); then
-   
-    echo $(hostname)": MASTER" 
     export CLIENT_JOB_ID=$SLURM_JOB_ID
     
     export JOB_HOME="/scratch/$USER/$CLIENT_JOB_ID"
@@ -71,16 +27,18 @@ elif (( LEVEL == 3 )); then
     export SPARK_DAEMON_MEMORY=5g
     export SPARK_MEMORY=5g
 
+    # Copy the script directory to a shared location, since SLURM changes the name
     SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
     export SCRIPT_PATH=$JOB_HOME/$(basename "$0")
     cp "$0" "$SCRIPT_PATH"
-    
+   
+    # Launch a job to start the Master
     sbatch \
         --nodes=1 \
         --mem=10G \
-        $SCRIPT_PATH 2
+        $SCRIPT_PATH MASTER 
 
-    # Read the master url here 
+    # Read the master url from shared location 
     MASTER_URL=''
     i=0
     while [ -z "$MASTER_URL" ]; do
@@ -106,8 +64,56 @@ elif (( LEVEL == 3 )); then
         --deploy-mode client \
         $APP 
 
+elif [ $LEVEL == MASTER ]; then
+
+    echo $(hostname)": $LEVEL" 
+    export SPARK_MASTER_HOST=$(hostname)
+    export SPARK_MASTER_PORT=7077
+    export SPARK_MASTER_WEBUI_PORT=8080
+    export MASTER_URL="spark://$SPARK_MASTER_HOST:$SPARK_MASTER_PORT"
+    export MASTER_WEBUI_URL="spark://$SPARK_MASTER_HOST:$SPARK_MASTER_WEBUI_PORT"
+    export SPARK_DAEMON_MEMORY=1G
+    export SPARK_MEM=$SPARK_DAEMON_MEMORY
+
+    export SPARK_WORKER_CORES=4
+
+    # Try to load stuff that the spark scripts will load
+    source "$SPARK_HOME/sbin/spark-config.sh"
+    source "$SPARK_HOME/bin/load-spark-env.sh"
+    
+    # Start the Spark master
+    #$SPARK_HOME/bin/spark-class org.apache.spark.deploy.master.Master \
+        #--properties-file $HOME/accre/Spark/spark-slurm/spark-defaults.conf
+    $SPARK_HOME/sbin/start-master.sh \
+        --ip $SPARK_MASTER_HOST \
+        --port $SPARK_MASTER_PORT \
+        --webui-port $SPARK_MASTER_WEBUI_PORT
+
+    # Launch a job to start the Worker nodes
+    sbatch \
+        --nodes=4 \
+        --ntasks-per-node=1 \
+        --cpus-per-task=$SPARK_WORKER_CORES \
+        --mem=10G \
+        $SCRIPT_PATH WORKER 
+    
+    # Write the master url to shared disk so that the client can read it.
+    echo $MASTER_URL > $JOB_HOME/master_url
+    
+    scontrol wait_job $CLIENT_JOB_ID && date
+
+elif [ $LEVEL == "WORKER" ]; then
+    
+    echo $SLURM_NODELIST
+    prog="$SPARK_HOME/sbin/start-slave.sh \
+        $MASTER_URL"
+    echo $prog
+    $prog
+
+    scontrol wait_job $CLIENT_JOB_ID && date
+
 else
 
-    echo "Should never reach here!"; exit 1
+    echo "Invalid LEVEL option $LEVEL"; exit 1
 
 fi
