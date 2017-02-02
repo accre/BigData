@@ -24,8 +24,8 @@ if [ $LEVEL == "CLIENT" ]; then
     mkdir -p $JOB_HOME $SPARK_WORKER_DIR $SPARK_LOCAL_DIR 
 
     export SPARK_WORKER_CORES=1
-    export SPARK_DAEMON_MEMORY=5g
-    export SPARK_MEMORY=5g
+    export SPARK_DAEMON_MEMORY=2g
+    export SPARK_MEMORY=2g
 
     # Copy the script directory to a shared location, since SLURM changes the name
     SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -42,8 +42,9 @@ if [ $LEVEL == "CLIENT" ]; then
         --nodes=1 \
         --mem=10G \
         $SCRIPT_PATH MASTER)
-    $MASTER_JOB_ID=${MASTER_JOB_ID##Submitted batch job }
-
+    echo $MASTER_JOB_ID
+    $MASTER_JOB_ID=${MASTER_JOB_ID//[!0-9]/} 
+   
     # Read the master url from shared location 
     MASTER_URL=''
     i=0
@@ -58,19 +59,28 @@ if [ $LEVEL == "CLIENT" ]; then
         ((i++))
     done
     echo "Master URL = $MASTER_URL"
-   
-    export MASTER_URL=$MASTER_URL
+  
 
     # Launch a job to start the Worker nodes
-    sbatch \
+    export MASTER_URL=$MASTER_URL # necessary to start a worker
+
+    # Since Spark uses ssh in standalone cluster mode, there's
+    # no need to invoke MPI
+    WORKERS_JOB_ID=$(sbatch \
         --nodes=1 \
         --ntasks-per-node=1 \
         --cpus-per-task=$SPARK_WORKER_CORES \
         --mem=10G \
-        $SCRIPT_PATH WORKER 
+        --time=00:05:00 \
+        $SCRIPT_PATH WORKER)
+    echo $WORKERS_JOB_ID
+    $WORKERS_JOB_ID=${WORKERS_JOB_ID//[!0-9]/} 
    
+    # TODO: Optionally, wait for workers to signal back
+    sleep 5s
+
     # Specify input files
-    INPUT="README.md"
+    INPUT="local://README.md"
     OUTPUT="wordcount_$(date +%Y%m%d_%H%M%S)"
     APP="spark-wc_2.11-1.0.jar $INPUT $OUTPUT"
     
@@ -81,11 +91,9 @@ if [ $LEVEL == "CLIENT" ]; then
         $APP 
     
     # Tear down the master and workers
-    scancel $MASTER_JOB_ID
+    #scancel $MASTER_JOB_ID
+    #scancel $WORKERS_JOB_ID
     
-
-elif [ $LEVEL == PROVISION ]; then
-    echo "foo"
 
 elif [ $LEVEL == MASTER ]; then
 
@@ -94,10 +102,6 @@ elif [ $LEVEL == MASTER ]; then
     export SPARK_MASTER_WEBUI_PORT=8080
     export MASTER_URL="spark://$SPARK_MASTER_HOST:$SPARK_MASTER_PORT"
     export MASTER_WEBUI_URL="spark://$SPARK_MASTER_HOST:$SPARK_MASTER_WEBUI_PORT"
-    export SPARK_DAEMON_MEMORY=1G
-    export SPARK_MEM=$SPARK_DAEMON_MEMORY
-
-    export SPARK_WORKER_CORES=4
 
     # Try to load stuff that the spark scripts will load
     source "$SPARK_HOME/sbin/spark-config.sh"
