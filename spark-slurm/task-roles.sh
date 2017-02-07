@@ -58,10 +58,16 @@ if [ $LEVEL == "CLIENT" ]; then
     # Wait for the master to signal back
     getMasterURL
     echo "Master Host: $MASTER_HOST"
-    echo "To tunnel to WebUI: ssh -L \
-        $SPARK_MASTER_WEBUI_PORT:$MASTER_HOST:$SPARK_MASTER_WEBUI_PORT \
-        vunetid@login.accre.vanderbilt.edu"
-   
+    msg1="To tunnel to WebUI -> ssh -L"
+    msg1+="$SPARK_MASTER_WEBUI_PORT:$MASTER_HOST:$SPARK_MASTER_WEBUI_PORT"
+    msg1+="vunetid@login.accre.vanderbilt.edu"
+    echo $msg1
+    
+    msg2="To tunnel to Spark Job UI -> ssh -L"
+    msg2+="4040:$MASTER_HOST:4040"
+    msg2+="vunetid@login.accre.vanderbilt.edu"
+    echo $msg2
+    
     # Wait for workers to signal back
     getPID
 
