@@ -61,7 +61,7 @@ if [ $LEVEL == "CLIENT" ]; then
     msg1="To tunnel to MasterUI and JobUI -> ssh "
     msg1+="-L $SPARK_MASTER_WEBUI_PORT:$MASTER_HOST:$SPARK_MASTER_WEBUI_PORT "
     msg1+="-L 4040:$MASTER_HOST:4040 "
-    msg1+="vunetid@login.accre.vanderbilt.edu"
+    msg1+="$USER@login.accre.vanderbilt.edu"
     echo $msg1
     
     # Wait for workers to signal back
