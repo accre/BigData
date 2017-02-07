@@ -69,6 +69,7 @@ if [ $LEVEL == "CLIENT" ]; then
     $SPARK_HOME/bin/spark-submit \
         --master $MASTER_URL \
         --deploy-mode client \
+        --total-executor-cores $(( NWORKERS * $SPARK_EXECUTOR_CORES )) \
         $APP
     
         #--executor-cores $SPARK_EXECUTOR_CORES \
