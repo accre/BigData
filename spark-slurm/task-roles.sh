@@ -58,15 +58,11 @@ if [ $LEVEL == "CLIENT" ]; then
     # Wait for the master to signal back
     getMasterURL
     echo "Master Host: $MASTER_HOST"
-    msg1="To tunnel to WebUI -> ssh -L"
-    msg1+="$SPARK_MASTER_WEBUI_PORT:$MASTER_HOST:$SPARK_MASTER_WEBUI_PORT"
+    msg1="To tunnel to MasterUI and JobUI -> ssh "
+    msg1+="-L $SPARK_MASTER_WEBUI_PORT:$MASTER_HOST:$SPARK_MASTER_WEBUI_PORT "
+    msg1+="-L 4040:$MASTER_HOST:4040 "
     msg1+="vunetid@login.accre.vanderbilt.edu"
     echo $msg1
-    
-    msg2="To tunnel to Spark Job UI -> ssh -L"
-    msg2+="4040:$MASTER_HOST:4040"
-    msg2+="vunetid@login.accre.vanderbilt.edu"
-    echo $msg2
     
     # Wait for workers to signal back
     getPID
@@ -100,6 +96,9 @@ elif [ $LEVEL == MASTER ]; then
 elif [ $LEVEL == "WORKER" ]; then
     
     getMasterURL
+    export SPARK_WORKER_DIR=/tmp/$USER/$JOB_ID/work
+    export SPARK_LOCAL_DIR=/tmp/$USER/$JOB_ID
+    mkdir -p $SPARK_WORKER_DIR $SPARK_LOCAL_DIR 
     
     echo "Master URL = $MASTER_URL"
     hostname > $JOB_HOME/$SLURM_PROCID 
