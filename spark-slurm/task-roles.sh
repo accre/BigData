@@ -1,20 +1,16 @@
 #!/bin/bash
-# spark.slurm
+# task-roles.sh
 
-if [[ "$#" -ne 1 && "$#" -ne 0 ]]; then
-    echo "USAGE: SBATCH [OPTION] $0 [LEVEL]"; exit 1
-fi
-if [ "$#" -eq 1 ]; then
-    LEVEL=$1
+if [[ "$#" -ne 1 ]]; then
+    echo "USAGE: BASH $0 [LEVEL]"; exit 1
 else
-    LEVEL="CLIENT"
+    LEVEL="$1"
 fi
-
 echo $(hostname)": $LEVEL : $SLURM_PROCID" 
 
 
 # Reads the master URL from a shared location, indicating that the
-# Master process has stared
+# Master process has started
 function getMasterURL {
     # Read the master url from shared location 
     MASTER_HOST=''
@@ -38,6 +34,9 @@ function getMasterURL {
     MASTER_URL="spark://$MASTER_HOST:$SPARK_MASTER_PORT"
 }
 
+# Reads files named after worker process IDs
+# Once each worker has written its hostname to file, 
+# this function terminates
 function getPID {
     local i=0
 
@@ -56,32 +55,24 @@ function getPID {
 
 if [ $LEVEL == "CLIENT" ]; then
 
+    # Wait for the master to signal back
     getMasterURL
     echo "Master Host: $MASTER_HOST"
     echo "To tunnel to WebUI: ssh -L \
-        $SPARK_MASTER_PORT:$MASTER_HOST:$SPARK_MASTER_PORT \
+        $SPARK_MASTER_WEBUI_PORT:$MASTER_HOST:$SPARK_MASTER_WEBUI_PORT \
         vunetid@login.accre.vanderbilt.edu"
    
     # Wait for workers to signal back
     getPID
 
-    # Specify input files
-    # INPUT="README.md"
-    INPUT="/scratch/arnoldjr/stack-archives/xml/ai.stackexchange.com/"
-    OUTPUT="wordcount_$(date +%Y%m%d_%H%M%S)"
-    APP="spark-wc_2.11-1.0.jar $INPUT $OUTPUT"
-    
-    # Submit the Spark jar
+    # Submit the Spark application, as defined in APP
     $SPARK_HOME/bin/spark-submit \
         --master $MASTER_URL \
         --deploy-mode client \
-        $APP 
+        $APP
     
-    echo $INPUT
-    echo $OUTPUT
-    echo $APP
-    
-    
+        #--executor-cores $SPARK_EXECUTOR_CORES \
+        #--executor-memory $SPARK_EXECUTOR_MEMORY \
 
 elif [ $LEVEL == MASTER ]; then
 
