@@ -8,9 +8,7 @@
 #SBATCH --partition=debug
     
 # Specify input, output, and jar/java/Python files
-# INPUT="README.md"
-# INPUT="/scratch/arnoldjr/stack-archives/xml/ai.stackexchange.com/"
-INPUT="/scratch/arnoldjr/stack-archives/xml/math.stackexchange.com/"
+INPUT="README.md"
 OUTPUT="wordcount_$SLURM_JOB_ID"
 
 # If submitting Scala
