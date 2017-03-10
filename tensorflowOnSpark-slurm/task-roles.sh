@@ -12,14 +12,17 @@ echo $(hostname)": $LEVEL : $SLURM_PROCID"
 case $LEVEL in 
   ("client") 
     # Convert the MNIST zip files
-    # cd ${TFoS_HOME}
-    # rm -rf examples/mnist/csv
-    # ${SPARK_HOME}/bin/spark-submit \
-    #   --master ${MASTER_URL} \
-    #   ${TFoS_HOME}/examples/mnist/mnist_data_setup.py \
-    #   --output examples/mnist/csv \
-    #   --format csv
-    # ls -lR examples/mnist/csv
+    cd ${TFoS_HOME}
+    rm -rf examples/mnist/csv
+    ${SPARK_HOME}/bin/spark-submit \
+      --master ${MASTER_URL} \
+      --deploy-mode client \
+      --total-executor-cores $(( NWORKERS * $SPARK_EXECUTOR_CORES )) \
+      ${TFoS_HOME}/examples/mnist/mnist_data_setup.py \
+      --output examples/mnist/csv \
+      --format csv
+    
+    ls -lR examples/mnist/csv
 
     # Run distributed MNIST training (using feed_dict)
     # rm -rf mnist_model
@@ -60,34 +63,40 @@ case $LEVEL in
     #less predictions/part-00000
 
     # Submit the Spark application, as defined in APP
-    echo $SPARK_HOME/bin/spark-submit \
-        --master $MASTER_URL \
-        --deploy-mode client \
-        --total-executor-cores $(( NWORKERS * $SPARK_EXECUTOR_CORES )) \
-        $APP
-    
-        #--executor-cores $SPARK_EXECUTOR_CORES \
-        #--executor-memory $SPARK_EXECUTOR_MEMORY \
+    # $SPARK_HOME/bin/spark-submit \
+    #     --master $MASTER_URL \
+    #     --deploy-mode client \
+    #     --total-executor-cores $(( NWORKERS * $SPARK_EXECUTOR_CORES )) \
+    #     $APP
+    # 
+    #     #--executor-cores $SPARK_EXECUTOR_CORES \
+    #     #--executor-memory $SPARK_EXECUTOR_MEMORY \
   ;;
 
   ("master") 
+    export SPARK_MASTER_HOST=$(hostname)
+    export MASTER_URL="spark://$SPARK_MASTER_HOST:$SPARK_MASTER_PORT"
+    export MASTER_WEBUI_URL="spark://$SPARK_MASTER_HOST:$SPARK_MASTER_WEBUI_PORT"
 
     # Start the Spark master
-    echo $SPARK_HOME/bin/spark-class org.apache.spark.deploy.master.Master \
-        --ip $SPARK_MASTER_HOST \
-        --port $SPARK_MASTER_PORT \
-        --webui-port $SPARK_MASTER_WEBUI_PORT
+    $SPARK_HOME/bin/spark-class org.apache.spark.deploy.master.Master \
+        --ip $SPARK_MASTER_HOST
   ;;
 
   ("worker") 
     
     SPARK_WORKER_DIR=/tmp/$USER/$JOB_ID/work
     SPARK_LOCAL_DIR=/tmp/$USER/$JOB_ID
-    # mkdir -p $SPARK_WORKER_DIR $SPARK_LOCAL_DIR 
-    
+    mkdir -p $SPARK_WORKER_DIR $SPARK_LOCAL_DIR 
+   
     # Start the Worker
-    echo "$SPARK_HOME/bin/spark-class" \
+    $SPARK_HOME/bin/spark-class \
         org.apache.spark.deploy.worker.Worker $MASTER_URL
+   
+    # $SPARK_HOME/sbin/start-slave.sh \
+    #   --work-dir $SPARK_WORKER_DIR \
+    #   --cores $SPARK_WORKER_CORES \
+    #   $MASTER_URL
   ;;
 
   (*)
