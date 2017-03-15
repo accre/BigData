@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 from __future__ import print_function
 
 from mpi4py import MPI
@@ -14,24 +15,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-client = 0
-master = 1
-
-# Start the master and block until its hostname is started
-if rank == master:
-  master_host = str(subprocess.check_output("hostname").strip())
-else:
-  master_host = None
-master_host = comm.bcast(master_host, root=master)
-
-# Set environment variables re spark master
-os.environ["SPARK_MASTER_HOST"] = master_host 
-os.environ["MASTER_URL"] = "spark://{0}:{1}".format(
-    os.environ["SPARK_MASTER_HOST"],os.environ["SPARK_MASTER_PORT"]
-    )
-os.environ["MASTER_WEBUI_URL"] = "spark://{0}:{1}".format(
-    os.environ["SPARK_MASTER_HOST"], os.environ["SPARK_MASTER_WEBUI_PORT"]
-    )
+master = 0
 
 # Start the master and block until it's started
 if rank == master:
@@ -42,9 +26,16 @@ else:
   master_started = None
 master_started = comm.bcast(master_started, root=master)
 
+# Start workers in each process
+logging.info("{0} worker".format(rank)) 
+p = Popen(["./task-roles.sh", "worker"], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+time.sleep(10)
+if p.poll() is not None:
+  logging.warn("Worker process ({0}) has died".format(rank))
 
-if rank == client:
-  # Wait until the master and each worker process have responded
+if rank == master:
+  
+  # Wait until the other worker processes have responded
   v = 0
   logging.info("Waiting for workers to respond")
   for i in range(2, size):
@@ -54,11 +45,13 @@ if rank == client:
 
   # Execute the client role
   subprocess.call(["./task-roles.sh", "client"])
+  client_finished = True
+else:
+  # Tell the master that you've started
+  comm.send(1, dest=master)
+  client_finished = None
+client_finished = comm.bcast(client_finished, root=master)
 
-elif rank != master:
-  logging.info("{0} worker".format(rank)) 
-  p = Popen(["./task-roles.sh", "worker"], stdin=PIPE, stdout=PIPE, stderr=PIPE)
-  time.sleep(10)
-  if p.poll() is not None:
-    logging.warn("Process has died")
-  comm.send(1, dest=client)
+if rank != master:
+  subprocess.call(["./task-roles.sh", "worker-cleanup"])
+

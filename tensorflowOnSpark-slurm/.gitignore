@@ -1,2 +1,6 @@
 slurm-*.out
 wordcount*
+examples/
+mnist_model/
+mnist
+predictions/
